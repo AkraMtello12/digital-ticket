@@ -1,0 +1,5 @@
+{
+  "name": "StartupSyria Digital Ticket Pass",
+  "description": "A digital ticket pass for StartupSyria events, extracting attendee details from URL parameters.",
+  "requestFramePermissions": []
+}

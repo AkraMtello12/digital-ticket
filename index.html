@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StartupSyria Digital Ticket Pass</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0A1526;
+            --accent-color: #00E58B;
+            --text-white: #FFFFFF;
+            --text-gray: #B0B8C1;
+            --font-family: 'Poppins', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-white);
+            font-family: var(--font-family);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Decorative background elements */
+        body::before, body::after {
+            content: '';
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            background: var(--accent-color);
+            filter: blur(150px);
+            opacity: 0.15;
+            z-index: -1;
+        }
+
+        body::before {
+            top: -100px;
+            left: -100px;
+        }
+
+        body::after {
+            bottom: -100px;
+            right: -100px;
+        }
+
+        header {
+            margin-bottom: 40px;
+            text-align: center;
+            z-index: 1;
+        }
+
+        header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: var(--text-white);
+        }
+
+        header h1 span {
+            color: var(--accent-color);
+        }
+
+        .ticket-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(0, 229, 139, 0.3);
+            border-radius: 24px;
+            padding: 40px 30px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .welcome-msg {
+            color: var(--text-gray);
+            font-size: 14px;
+            font-weight: 400;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+
+        .attendee-name {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--text-white);
+            line-height: 1.2;
+            word-break: break-word;
+        }
+
+        .divider {
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(0, 229, 139, 0.5), transparent);
+            margin: 10px 0;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--accent-color);
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .status svg {
+            width: 24px;
+            height: 24px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2.5;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .ticket-id-container {
+            margin-top: 10px;
+        }
+
+        .ticket-id {
+            background-color: rgba(0, 229, 139, 0.1);
+            color: var(--accent-color);
+            border: 1px solid var(--accent-color);
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            display: inline-block;
+        }
+
+        .error-state {
+            display: none;
+            color: #ff4d4f;
+            font-size: 18px;
+            font-weight: 600;
+            margin-top: 20px;
+        }
+
+        .ticket-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Startup<span>Syria</span></h1>
+    </header>
+
+    <div class="ticket-card" id="ticketCard">
+        <div id="ticketContent" class="ticket-content">
+            <div class="welcome-msg">Welcome to the StartupSyria Event!</div>
+            <div class="attendee-name" id="attendeeName">Loading...</div>
+            
+            <div class="divider"></div>
+            
+            <div class="status">
+                <svg viewBox="0 0 24 24">
+                    <path d="M20 6L9 17l-5-5"></path>
+                </svg>
+                Valid Pass
+            </div>
+            
+            <div class="ticket-id-container">
+                <div class="ticket-id" id="ticketId">---</div>
+            </div>
+        </div>
+        <div id="errorState" class="error-state">
+            Invalid Ticket Data
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const id = urlParams.get('id');
+            const name = urlParams.get('name');
+
+            const ticketContent = document.getElementById('ticketContent');
+            const errorState = document.getElementById('errorState');
+            const nameElement = document.getElementById('attendeeName');
+            const idElement = document.getElementById('ticketId');
+
+            if (id && name) {
+                // Valid data
+                nameElement.textContent = name;
+                idElement.textContent = id;
+            } else {
+                // Invalid or missing data
+                ticketContent.style.display = 'none';
+                errorState.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>
