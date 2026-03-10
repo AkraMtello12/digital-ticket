@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Poppins", ui-sans-serif, system-ui, sans-serif;
+  --color-navy: #0A1526;
+  --color-mint: #00E58B;
+  --color-mint-hover: #00c778;
+  --color-gray-light: #B0B8C1;
+}
+
+body {
+  background-color: var(--color-navy);
+  color: white;
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+/* Decorative background elements */
+.bg-glow {
+  position: fixed;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: var(--color-mint);
+  filter: blur(150px);
+  opacity: 0.15;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.bg-glow-top {
+  top: -100px;
+  left: -100px;
+}
+
+.bg-glow-bottom {
+  bottom: -100px;
+  right: -100px;
+}
