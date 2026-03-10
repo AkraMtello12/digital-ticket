@@ -5,10 +5,20 @@ import { auth, db } from '../firebase';
 import { Html5Qrcode } from 'html5-qrcode';
 import { LogOut, QrCode, Download, Trash2, CheckCircle, XCircle } from 'lucide-react';
 
+interface ScannedTicket {
+  id: string;
+  ticketId: string;
+  name: string;
+  date: string;
+  timestamp: string;
+  status: string;
+}
+
 export default function AdminDashboard() {
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState<{ status: 'valid' | 'invalid', message: string } | null>(null);
   const [stats, setStats] = useState(0);
+  const [scanLogs, setScanLogs] = useState<ScannedTicket[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
 
@@ -16,6 +26,13 @@ export default function AdminDashboard() {
     const q = query(collection(db, 'scanned_tickets'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setStats(snapshot.size);
+      const logs: ScannedTicket[] = [];
+      snapshot.forEach((doc) => {
+        logs.push({ id: doc.id, ...doc.data() } as ScannedTicket);
+      });
+      // Sort logs by timestamp descending
+      logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      setScanLogs(logs);
     });
     
     return () => {
@@ -57,32 +74,6 @@ export default function AdminDashboard() {
     setScanning(false);
   };
 
-  const playSound = (type: 'success' | 'error') => {
-    try {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      
-      if (type === 'success') {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(880, ctx.currentTime); // A5
-        gain.gain.setValueAtTime(0.1, ctx.currentTime);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.2);
-      } else {
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(150, ctx.currentTime);
-        gain.gain.setValueAtTime(0.1, ctx.currentTime);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.4);
-      }
-    } catch (e) {
-      console.log("Audio play failed", e);
-    }
-  };
-
   const onScanSuccess = async (decodedText: string) => {
     if (isProcessing) return;
     setIsProcessing(true);
@@ -97,29 +88,33 @@ export default function AdminDashboard() {
         throw new Error("Invalid QR Code format. Not a URL.");
       }
 
-      const id = url.searchParams.get('id');
-      if (!id) {
+      const ticketId = url.searchParams.get('id');
+      const name = url.searchParams.get('name') || 'Unknown';
+
+      if (!ticketId) {
         throw new Error("No ticket ID found in QR Code.");
       }
 
-      const ticketRef = doc(db, 'scanned_tickets', id);
+      const today = new Date().toISOString().split('T')[0];
+      const docId = `${ticketId}_${today}`;
+
+      const ticketRef = doc(db, 'scanned_tickets', docId);
       const ticketSnap = await getDoc(ticketRef);
 
       if (ticketSnap.exists()) {
-        setScanResult({ status: 'invalid', message: `❌ INVALID: Ticket ${id} Already Scanned!` });
-        playSound('error');
+        setScanResult({ status: 'invalid', message: `❌ INVALID: Ticket ${ticketId} Already Scanned Today!` });
       } else {
         await setDoc(ticketRef, {
-          id,
+          ticketId,
+          name,
+          date: today,
           timestamp: new Date().toISOString(),
           status: 'used'
         });
-        setScanResult({ status: 'valid', message: `✅ Valid Ticket: ${id}` });
-        playSound('success');
+        setScanResult({ status: 'valid', message: `✅ Valid Ticket: ${ticketId}` });
       }
     } catch (error: any) {
       setScanResult({ status: 'invalid', message: error.message || "Error processing ticket" });
-      playSound('error');
     } finally {
       setIsProcessing(false);
     }
@@ -132,10 +127,10 @@ export default function AdminDashboard() {
   const handleExport = async () => {
     const q = query(collection(db, 'scanned_tickets'));
     const snapshot = await getDocs(q);
-    let csv = 'Ticket ID,Timestamp,Status\n';
+    let csv = 'Document ID,Ticket ID,Name,Date,Timestamp,Status\n';
     snapshot.forEach((doc) => {
       const data = doc.data();
-      csv += `${data.id},${data.timestamp},${data.status}\n`;
+      csv += `${doc.id},${data.ticketId || data.id},${data.name || ''},${data.date || ''},${data.timestamp},${data.status}\n`;
     });
     
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -248,6 +243,42 @@ export default function AdminDashboard() {
           </div>
         )}
 
+      </div>
+
+      {/* Live Scan Log Table */}
+      <div className="w-full max-w-3xl mt-8 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-[0_20px_40px_rgba(0,0,0,0.4)]">
+        <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-mint animate-pulse"></div>
+          Live Scan Log
+        </h2>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-white/10 text-gray-light text-sm uppercase tracking-wider">
+                <th className="p-3 font-medium">Ticket ID</th>
+                <th className="p-3 font-medium">Attendee Name</th>
+                <th className="p-3 font-medium">Time of Scan</th>
+              </tr>
+            </thead>
+            <tbody>
+              {scanLogs.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="p-4 text-center text-gray-light">No tickets scanned yet.</td>
+                </tr>
+              ) : (
+                scanLogs.map((log) => (
+                  <tr key={log.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                    <td className="p-3 text-mint font-mono">{log.ticketId || log.id}</td>
+                    <td className="p-3 text-white">{log.name || 'N/A'}</td>
+                    <td className="p-3 text-gray-light text-sm">
+                      {new Date(log.timestamp).toLocaleString()}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
